@@ -1,9 +1,14 @@
 import numpy as np
-from scipy.spatial import procrustes
 
-def procrustes(
+
+def baseline_procrustes(
     X: np.ndarray,
-    Y: np.ndarray 
+    Y: np.ndarray,
 ) -> np.ndarray:
-    return procrustes(X,Y)
-
+    """
+    Compute the optimal orthogonal matrix Q that minimizes ||XQ - Y||_F.
+    Uses the classic SVD-based Procrustes solution.
+    """
+    M = X.T @ Y
+    U, _, Vt = np.linalg.svd(M)
+    return U @ Vt
