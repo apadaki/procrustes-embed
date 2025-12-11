@@ -543,7 +543,7 @@ def render_alignment_gif(
         blit=True,
     )
     caption = (
-        f"Top two PCA components of the synthetic trajectory; colors denote temporal segments (k={n_segments})."
+        f"Top two PCA components"
     )
     fig.text(
         0.5,
@@ -734,7 +734,7 @@ def main() -> None:
             est_cutoffs,
             output_path=args.gif_output,
             bounds=(x_min, x_max, y_min, y_max),
-            descriptor=f"{dim}D coords",
+            descriptor=f"{dim} dims",
         )
 
 

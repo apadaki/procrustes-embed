@@ -355,7 +355,7 @@ def main() -> None:
     aligners = [
         ("Baseline", IdentityAligner()),
         ("Global", GlobalAligner().fit(train_src, train_tgt)),
-        ("KMeans", KMeansAligner().fit(train_src, train_tgt)),
+        ("KMeans", KMeansAligner(clusters=args.piecewise_k).fit(train_src, train_tgt)),
         (
             "PCA Piecewise",
             PCAPiecewiseAligner(bins=args.piecewise_k, n_samples=args.piecewise_samples).fit(
