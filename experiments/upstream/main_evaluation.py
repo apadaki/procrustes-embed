@@ -35,6 +35,12 @@ parser.add_argument(
     type=int,
     help='Number of Lanczos steps used in nuclear norm approximation',
 )
+parser.add_argument(
+    '--nuclear-norm-fn',
+    action='store',
+    type=str,
+    help='Which nuclear norm implementation to use (e.g., fast or exact)',
+)
 
 DEFAULT_FAST_NUCLEAR_NORM = {
     "nuclear_norm_fn": "fast",
@@ -190,7 +196,7 @@ def _apply_rotation_perturbation(
 
 def generate_temporal_shift_data(
     *,
-    n_samples: int = 1800,
+    n_samples: int = 10000,
     dim: int = 32,
     n_pieces: int = 3,
     intracluster_drift: float = 0.01,
@@ -275,13 +281,14 @@ def _piecewise_competitor(X: np.ndarray, Y: np.ndarray, params: ExperimentParams
 
 def temporal_shift_experiment(
     *,
-    n_samples: int = 1800,
+    n_samples: int = 10000,
     dim: int = 32,
     n_pieces: int = 3,
     kmeans_clusters: Optional[int] = None,
     intracluster_drift: float = 0.01,
     intercluster_jump: float = 0.5,
     nuclear_norm_config: Optional[dict[str, Any]] = None,
+    nuclear_norm_fn: Optional[str] = None,
     assign_best: bool = False,
     competitors: Optional[Sequence[CompetitorAlgorithm]] = None,
     dp_samples: Optional[int] = 150,
@@ -296,7 +303,9 @@ def temporal_shift_experiment(
     if kmeans_clusters <= 0:
         raise ValueError("kmeans_clusters must be positive.")
 
-    norm_config = nuclear_norm_config or DEFAULT_FAST_NUCLEAR_NORM
+    norm_config = dict(nuclear_norm_config or DEFAULT_FAST_NUCLEAR_NORM)
+    if nuclear_norm_fn is not None:
+        norm_config['nuclear_norm_fn'] = nuclear_norm_fn
     nuclear_norm = NuclearNormApproximation(
         fn=norm_config.get('nuclear_norm_fn', 'exact'),
         kwargs=dict(norm_config.get('nuclear_norm_kwargs', {})),
@@ -362,18 +371,19 @@ def main() -> None:
     if args.steps is not None:
         nuclear_kwargs['lanczos_steps'] = int(args.steps)
 
+    nuclear_fn = args.nuclear_norm_fn or DEFAULT_FAST_NUCLEAR_NORM['nuclear_norm_fn']
     nuclear_config = {
-        'nuclear_norm_fn': DEFAULT_FAST_NUCLEAR_NORM['nuclear_norm_fn'],
+        'nuclear_norm_fn': nuclear_fn,
         'nuclear_norm_kwargs': nuclear_kwargs,
     }
 
     result = temporal_shift_experiment(
         nuclear_norm_config=nuclear_config,
+        nuclear_norm_fn=args.nuclear_norm_fn,
         dim=100,
         n_pieces=4,
         intracluster_drift=1e-5,
         intercluster_jump=1,
-        assign_best=True,
     )
 
     print('Temporal shift experiment metrics:')

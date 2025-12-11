@@ -1,5 +1,16 @@
 import numpy as np
-from scipy.sparse.linalg import aslinearoperator
+
+
+class _LinearOperator:
+    """Minimal linear-operator wrapper used for Lanczos without SciPy."""
+
+    def __init__(self, shape, matvec, dtype):
+        self.shape = shape
+        self.dtype = dtype
+        self._matvec = matvec
+
+    def matvec(self, x):
+        return self._matvec(x)
 
 def lanczos_tridiag(A, v, m):
     """
@@ -50,10 +61,7 @@ def nuclear_norm_slq(A, n_vectors=10, lanczos_steps=20):
     def mv(x):
         return A.T @ (A @ x)
     
-    M_op = aslinearoperator(np.zeros((n, n))) # Dummy to get class
-    M_op.shape = (n, n)
-    M_op.matvec = mv
-    M_op.dtype = A.dtype
+    M_op = _LinearOperator((n, n), mv, A.dtype)
 
     results = []
     

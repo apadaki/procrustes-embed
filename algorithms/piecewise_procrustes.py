@@ -5,6 +5,8 @@ from typing import Optional, Sequence
 
 import numpy as np
 
+from .baseline_procrustes import baseline_procrustes
+
 try:
     from .fast_nuclear_norm import nuclear_norm_slq  # type: ignore
 except ImportError:  # pragma: no cover - optional dependency
@@ -81,11 +83,7 @@ def clustering_to_transformation(
         X_cluster = X[cluster_i]
         Y_cluster = Y[cluster_i]
 
-        # compute optimal Q for this cluster
-        M = X_cluster.T @ Y_cluster
-        U, _, Vt = np.linalg.svd(M)
-        Q_opt = U @ Vt
-
+        Q_opt = baseline_procrustes(X_cluster, Y_cluster)
         transformations.append(Q_opt)
         diff = X_cluster @ Q_opt - Y_cluster
         cluster_cost = float(np.linalg.norm(diff)**2)
@@ -125,10 +123,6 @@ def piecewise_procrustes(
     X_ordered = X[order]
     Y_ordered = Y[order]
 
-    outer_prods_full = np.einsum("ni,nj->nij", X_ordered, Y_ordered)
-    M_prefix_full = np.cumsum(outer_prods_full, axis=0)
-    M_prefix_full = np.concatenate([np.zeros((1, d, d)), M_prefix_full], axis=0)
-
     # Down-sample only the candidate boundary locations; prefix sums still use all rows.
     if n_samples is None or n_samples >= n_full:
         prefix_positions = np.arange(n_full + 1, dtype=int)
@@ -154,6 +148,24 @@ def piecewise_procrustes(
         prefix_positions = np.append(prefix_positions, n_full)
 
     n_work = len(prefix_positions) - 1
+
+    # Build prefix sums only at the candidate boundary locations to avoid
+    # materializing the full n x d x d tensor of outer products.
+    acc_dtype = np.result_type(X_ordered.dtype, Y_ordered.dtype)
+    prefix_sums = np.zeros((len(prefix_positions), d, d), dtype=acc_dtype)
+    cumulative = np.zeros((d, d), dtype=acc_dtype)
+    next_prefix = 1
+    for row_idx in range(n_full):
+        cumulative += np.outer(X_ordered[row_idx], Y_ordered[row_idx])
+        while next_prefix < len(prefix_positions) and (row_idx + 1) == prefix_positions[next_prefix]:
+            prefix_sums[next_prefix] = cumulative
+            next_prefix += 1
+            if next_prefix == len(prefix_positions):
+                break
+        if next_prefix == len(prefix_positions):
+            break
+    if next_prefix != len(prefix_positions):
+        raise RuntimeError("Failed to build prefix sums for all candidate boundaries.")
     
     DP_array = np.zeros((n_work + 1, k + 1))
     backpointers: dict[tuple[int, int], int] = {}
@@ -161,13 +173,27 @@ def piecewise_procrustes(
     # Precompute all nuclear norms
 
     norm = np.zeros((n_work + 1, n_work + 1))
+    total_norms = n_work * (n_work + 1) // 2
+
+    def _progress_bar(computed: int) -> None:
+        if total_norms <= 0:
+            return
+        width = 28
+        frac = min(1.0, computed / total_norms)
+        filled = int(width * frac)
+        bar = '=' * filled + ' ' * (width - filled)
+        print(f'\rnuclear norm computations [{bar}] {computed}/{total_norms}', end='', flush=True)
+
+    update_interval = max(1, total_norms // 200)
+    computed_norms = 0
     for x in range(1, n_work + 1):
-        print('nuclear norm computations {}/{}'.format(x, n_work), end='\r')
-        end_idx = prefix_positions[x]
         for y in range(1, x + 1):
-            start_idx = prefix_positions[y - 1]
-            norm[x, y] = norm_fn(M_prefix_full[end_idx] - M_prefix_full[start_idx])
-    print()
+            norm[x, y] = norm_fn(prefix_sums[x] - prefix_sums[y - 1])
+            computed_norms += 1
+            if computed_norms % update_interval == 0 or computed_norms == total_norms:
+                _progress_bar(computed_norms)
+    if total_norms > 0:
+        print()
     # Base case: r=1 (one cluster)
     for j in range(1, n_work + 1):
         DP_array[j,1] = norm[j,1]
