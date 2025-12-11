@@ -22,7 +22,7 @@ python experiments/upstream/main_evaluation.py
 
 ## Downstream applications
 
-`experiments/downstream/partial_upgrade.py` evaluates a **partial upgrade**: documents are indexed with Model A, queries come from Model B, and we use vector alignment to learn a map from Model B to Model A that we apply before retrieval. The script reports **Recall** on held-out pairs, plus **train/test residuals**, and saves small plots/CSVs.
+`experiments/downstream/partial_upgrade.py` evaluates a **partial upgrade**: documents are indexed with Model A, queries come from Model B, and we use vector alignment to learn a map from Model B to Model A that we apply before retrieval. The script reports **Recall** on held-out pairs and train/test residuals.
 
 
 ```bash
@@ -41,6 +41,6 @@ The DP solver performs a quadratic number of nuclear norm computations. By defau
 
 ## Future directions
 
-- **Runtime.** Save on the $n^2$ runtime factor with a better algorithmic idea (e.g., use Frobenius norm as proxy)
+- **Runtime.** Save on the $n^2$ runtime factor with a better algorithmic idea (e.g., sketching the Frobenius norm as a proxy)
 - **Quality.** Find a setting / downstream task where `piecewise_procrustes` can yield substantially better results than naive methods -- currently, it doesn't look too promising
 
