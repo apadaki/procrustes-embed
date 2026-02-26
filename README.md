@@ -1,6 +1,6 @@
 # Procrustes Embed
 
-Small project on algorithms for *piecewise orthogonal alignment* of vectors and an application to vector embeddings. The main contribution is a dynamic-programming algorithm which finds the optimal clustering (along a given 1-dimensional ordering of the data) and cluster-wise orthogonal transformations to minimize the squared alignment error.
+Small project on algorithms for *piecewise orthogonal alignment* of vectors and an application to vector embeddings. The main contribution is a dynamic-programming algorithm which finds the optimal clustering (along a given 1-dimensional ordering of the data) and cluster-wise orthogonal transformations to minimize the squared alignment error. [See writeup](piecewise-alignment-embeddings.pdf).
 
 **Visualization of the DP algorithm:**
 
